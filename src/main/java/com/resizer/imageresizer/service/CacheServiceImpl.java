@@ -11,9 +11,11 @@ import org.apache.commons.io.FilenameUtils;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 @Service
@@ -50,26 +52,26 @@ public class CacheServiceImpl implements CacheService {
   }
 
   @Override
-  public Resource get(String name, Integer width, Integer height) {
+  public Optional<Resource> get(String name, Integer width, Integer height) {
     try {
-      if (width == null || height == null) return null;
+      if (width == null || height == null) return Optional.empty();
 
       Path imageLocation = this.cachePath.resolve(buildFileName(name, width, height));
       if (Files.exists(imageLocation)) {
-        return new UrlResource(imageLocation.toUri());
+        return Optional.of(new UrlResource(imageLocation.toUri()));
       }
-      return null;
-    } catch (IOException ex) {
-      return null;
+      return Optional.empty();
+    } catch (MalformedURLException ex) {
+      throw new RuntimeException("Invalid resource url.");
     }
   }
 
   @Override
-  public Long getTotalCachedImages() {
+  public Optional<Long> getTotalCachedImages() {
     try (Stream<Path> files = Files.list(this.cachePath)) {
-      return files.count();
+      return Optional.of(files.count());
     } catch (IOException ex) {
-      return null;
+      return Optional.empty();
     }
   }
 

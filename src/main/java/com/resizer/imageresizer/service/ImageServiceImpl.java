@@ -4,11 +4,9 @@ import com.resizer.imageresizer.event.CacheHitEvent;
 import com.resizer.imageresizer.event.CacheMissEvent;
 import com.resizer.imageresizer.event.ImageAddedEvent;
 import com.resizer.imageresizer.property.AppProperties;
-import com.sun.istack.NotNull;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,7 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 @Service
@@ -50,66 +48,73 @@ public class ImageServiceImpl implements ImageService {
   }
 
   @Override
-  public Resource getImage(String name, Integer width, Integer height) {
-    final Resource cachedImage = this.cacheService.get(name, width, height);
+  public Optional<Resource> getImage(String name, Integer width, Integer height) {
+    Optional<Resource> cachedImage = this.cacheService.get(name, width, height);
 
-    if (cachedImage != null) {
+    if (cachedImage.isEmpty()) {
       this.eventPublisher.publishEvent(new CacheHitEvent(this));
       return cachedImage;
     }
 
     this.eventPublisher.publishEvent(new CacheMissEvent(this));
 
-    Resource resource = getImageFromStorage(name);
-    if (resource == null) return null;
+    Optional<Resource> resource = getImageFromStorage(name);
 
-    BufferedImage resizedImaged = getResizedImage(resource, width, height);
+    if (resource.isEmpty()) {
+      return Optional.empty();
+    }
 
-    return this.cacheService.save(name, resizedImaged.getWidth(), resizedImaged.getHeight(), resizedImaged);
+    BufferedImage resizedImaged = getResizedImage(resource.get(), width, height);
+    Resource newCachedImage = this.cacheService.save(name, resizedImaged.getWidth(), resizedImaged.getHeight(), resizedImaged);
+
+    return Optional.of(newCachedImage);
   }
 
   @Override
-  public String saveImage(@NotNull MultipartFile image) {
-    String fileName = StringUtils.cleanPath(Objects.requireNonNull(image.getOriginalFilename()));
+  public Resource saveImage(MultipartFile image) {
+    if (image == null) {
+      throw new RuntimeException("Cannot save null image");
+    }
+
+    if (image.getOriginalFilename() == null || image.getOriginalFilename().contains("..")) {
+      throw new RuntimeException("Invalid image name");
+    }
+
+    String fileName = StringUtils.cleanPath(image.getOriginalFilename());
 
     try {
-      if (fileName.contains("..")) {
-        throw new RuntimeException("Invalid image name");
-      }
-
       Path targetLocation = this.storagePath.resolve(fileName);
       Files.copy(image.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
       this.eventPublisher.publishEvent(new ImageAddedEvent(this));
 
-      return fileName;
+      return new UrlResource(targetLocation.toUri());
     } catch (IOException ex) {
       throw new RuntimeException("Could not save image.");
     }
   }
 
   @Override
-  public Long getImagesCount() {
+  public Optional<Long> getImagesCount() {
     try (Stream<Path> files = Files.list(this.storagePath)) {
-      return files.count();
+      return Optional.of(files.count());
     } catch (IOException ex) {
-      return null;
+      return Optional.empty();
     }
   }
 
-  @Nullable
-  private Resource getImageFromStorage(String name) {
+  private Optional<Resource> getImageFromStorage(String name) {
     try {
       Path imagePath = this.storagePath.resolve(name).normalize();
       Resource resource = new UrlResource(imagePath.toUri());
 
       if (!resource.exists()) {
-        return null;
+        return Optional.empty();
       }
 
-      return resource;
+      return Optional.of(resource);
     } catch (MalformedURLException ex) {
-      return null;
+      throw new RuntimeException("Can not read file from disk");
     }
   }
 

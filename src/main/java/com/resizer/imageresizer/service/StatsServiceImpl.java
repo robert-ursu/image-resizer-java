@@ -42,8 +42,8 @@ public class StatsServiceImpl implements StatsService{
   public void resetStats() {
     this.statsRepository.save(Stat.empty(StatConstants.CACHE_HIT));
     this.statsRepository.save(Stat.empty(StatConstants.CACHE_MISS));
-    this.statsRepository.save(new Stat(StatConstants.TOTAL_IMAGES, this.imageService.getImagesCount()));
-    this.statsRepository.save(new Stat(StatConstants.TOTAL_CACHED_IMAGES, this.cacheService.getTotalCachedImages()));
+    this.statsRepository.save(new Stat(StatConstants.TOTAL_IMAGES, this.imageService.getImagesCount().orElse(0L)));
+    this.statsRepository.save(new Stat(StatConstants.TOTAL_CACHED_IMAGES, this.cacheService.getTotalCachedImages().orElse(0L)));
     this.statsRepository.flush();
   }
 }

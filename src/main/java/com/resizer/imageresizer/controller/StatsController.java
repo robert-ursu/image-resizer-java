@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequestMapping("/stats")
 public class StatsController {
   private final StatsService statsService;
 
@@ -13,13 +14,13 @@ public class StatsController {
     this.statsService = statsService;
   }
 
-  @GetMapping("/stats")
-  public ResponseEntity<StatsDto> GetAllStats() {
+  @GetMapping()
+  public ResponseEntity<StatsDto> getAllStats() {
     return ResponseEntity.ok(statsService.getStats());
   }
 
-  @DeleteMapping("/stats")
-  public ResponseEntity<?> GetStat() {
+  @DeleteMapping()
+  public ResponseEntity<?> getStat() {
     this.statsService.resetStats();
     return ResponseEntity.ok().build();
   }

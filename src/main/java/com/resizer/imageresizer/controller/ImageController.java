@@ -11,8 +11,10 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.net.URLConnection;
+import java.util.Optional;
 
 @RestController
+@RequestMapping("/image")
 public class ImageController {
   private final ImageService imageService;
 
@@ -20,31 +22,39 @@ public class ImageController {
     this.imageService = imageService;
   }
 
-  @GetMapping("/image/{name:.+}")
-  public ResponseEntity<Resource> Get(
+  @GetMapping("{name:.+}")
+  public ResponseEntity<Resource> get(
       @PathVariable String name,
       @RequestParam(required = false) Integer width,
       @RequestParam(required = false) Integer height) {
 
-    final Resource image = this.imageService.getImage(name, width, height);
+    final Optional<Resource> image = this.imageService.getImage(name, width, height);
 
-    if (image == null)
+    if (image.isEmpty())
       return ResponseEntity.notFound().build();
 
     return ResponseEntity.ok()
-        .contentType(MediaType.parseMediaType(URLConnection.guessContentTypeFromName(image.getFilename())))
-        .header(HttpHeaders.CONTENT_DISPOSITION, String.format("attachment; filename=\"%s\"", image.getFilename()))
-        .body(image);
+        .contentType(MediaType.parseMediaType(URLConnection.guessContentTypeFromName(image.get().getFilename())))
+        .header(HttpHeaders.CONTENT_DISPOSITION, String.format("attachment; filename=\"%s\"", image.get().getFilename()))
+        .body(image.get());
   }
 
-  @PostMapping("/image")
-  public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile image) {
-    String fileName = this.imageService.saveImage(image);
+  @PostMapping()
+  public ResponseEntity<?> uploadFile(@RequestParam("image") MultipartFile image) {
+    if (image == null) {
+      return ResponseEntity.badRequest().build();
+    }
+
+    Resource savedImage = this.imageService.saveImage(image);
+
+    if (savedImage == null || savedImage.getFilename() == null) {
+      return ResponseEntity.badRequest().build();
+    }
 
     URI fileDownloadUri = ServletUriComponentsBuilder
         .fromCurrentContextPath()
         .path("/image/")
-        .path(fileName)
+        .path(savedImage.getFilename())
         .build()
         .toUri();
 

@@ -56,7 +56,7 @@ public class StatsEventListener {
     // needs to be made atomic
     Stat cacheHitStat = this.statsRepository.findById(StatConstants.TOTAL_IMAGES)
         .orElse(Stat.empty(StatConstants.TOTAL_IMAGES));
-    cacheHitStat.setValue(this.imageService.getImagesCount());
+    cacheHitStat.setValue(this.imageService.getImagesCount().orElse(0L));
     this.statsRepository.saveAndFlush(cacheHitStat);
   }
 
@@ -67,7 +67,7 @@ public class StatsEventListener {
     // needs to be made atomic
     Stat cacheHitStat = this.statsRepository.findById(StatConstants.TOTAL_CACHED_IMAGES)
         .orElse(Stat.empty(StatConstants.TOTAL_CACHED_IMAGES));
-    cacheHitStat.setValue(this.cacheService.getTotalCachedImages());
+    cacheHitStat.setValue(this.cacheService.getTotalCachedImages().orElse(0L));
     this.statsRepository.saveAndFlush(cacheHitStat);
   }
 }
